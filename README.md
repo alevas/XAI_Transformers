@@ -3,6 +3,9 @@
   <img width="600" height="300" src="https://i.ibb.co/QdbXFjY/Screen-Shot-2022-02-11-at-11-26-06.png">
 </p>
 
+DISCLAIMER: I (alevas) am only editing this project so as to use it as a dependency for my own projects.
+I am not among the authors of the original code or the paper itself. 
+
 For the SST-2 and IMDB expermints follow the following instructions :
 - The PreTrained models of SST-2 and IMDB can be found at: <br>
 1 - SST-2 : https://drive.google.com/file/d/1h6tWtZ-y5KkBiNok4qXZcr8YQaMHKRQ0/view <br>

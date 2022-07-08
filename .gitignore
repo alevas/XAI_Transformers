@@ -1,0 +1,13 @@
+# FILE ENDINGS
+*.png
+*.pt
+*.bin
+*.p
+
+# FOLDERS
+__init__.py
+__pycache__/
+.idea/
+experiments/
+*egg-info/
+build/

@@ -1,4 +1,3 @@
-
 # Copyright (c) 2017-present, Facebook, Inc.
 # All rights reserved.
 #
@@ -6,12 +5,15 @@
 # the root directory of this source tree. An additional grant of patent rights
 # can be found in the PATENTS file in the same directory.
 
+import os
+
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+
 from attribution import softmax
-import os
-import numpy as np
+
 
 def set_up_dir(path):
     try:
@@ -23,7 +25,6 @@ def set_up_dir(path):
 
 class LayerNormImpl(nn.Module):
     __constants__ = ['weight', 'bias', 'eps']
-
 
     def __init__(self, args, hidden, eps=1e-5, elementwise_affine=True):
         super(LayerNormImpl, self).__init__()
@@ -56,7 +57,7 @@ class LayerNormImpl(nn.Module):
             return input
         elif self.mode == 'topk':
             T, B, C = input.size()
-            input = input.reshape(T*B, C)
+            input = input.reshape(T * B, C)
             k = max(int(self.hidden * self.sigma), 1)
             input = input.view(1, -1, self.hidden)
             topk_value, topk_index = input.topk(k, dim=-1)
@@ -77,7 +78,7 @@ class LayerNormImpl(nn.Module):
             mean = input.mean(-1, keepdim=True)
             graNorm = (1 / 10 * (input - mean) / (std + self.eps)).detach()
             input_norm = (input - input * graNorm) / (std + self.eps)
-            return input_norm*self.adanorm_scale
+            return input_norm * self.adanorm_scale
         elif self.mode == 'nowb':
             mean = input.mean(dim=-1, keepdim=True)
             std = input.std(dim=-1, keepdim=True)
@@ -97,7 +98,7 @@ class LayerNormImpl(nn.Module):
                 std = std.detach()
             input_norm = (input - mean) / (std + self.eps)
 
-            input_norm = input_norm*self.weight + self.bias
+            input_norm = input_norm * self.weight + self.bias
 
             return input_norm
 
@@ -121,21 +122,21 @@ def LayerNorm(normalized_shape, eps=1e-5, elementwise_affine=True, export=False,
             pass
     return torch.nn.LayerNorm(normalized_shape, eps, elementwise_affine)
 
-def flip(model, x, token_ids, tokens, y_true,  fracs, flip_case,random_order = False, tokenizer=None, device='cpu'):
 
+def flip(model, x, token_ids, tokens, y_true, fracs, flip_case, random_order=False, tokenizer=None, device='cpu'):
     x = np.array(x)
 
     UNK_IDX = tokenizer.unk_token_id
     inputs0 = torch.tensor(token_ids).to(device)
 
-    y0 = model(inputs0, labels = None)['logits'].squeeze().detach().cpu().numpy()
+    y0 = model(inputs0, labels=None)['logits'].squeeze().detach().cpu().numpy()
     orig_token_ids = np.copy(token_ids.detach().cpu().numpy())
 
-    if random_order==False:
-        if  flip_case=='generate':
+    if random_order == False:
+        if flip_case == 'generate':
             inds_sorted = np.argsort(x)[::-1]
-        elif flip_case=='pruning':
-            inds_sorted =  np.argsort(np.abs(x))
+        elif flip_case == 'pruning':
+            inds_sorted = np.argsort(np.abs(x))
         else:
             raise
     else:
@@ -151,43 +152,43 @@ def flip(model, x, token_ids, tokens, y_true,  fracs, flip_case,random_order = F
 
     mse = []
     evidence = []
-    model_outs = {'sentence': tokens, 'y_true':y_true.detach().cpu().numpy(), 'y0':y0}
+    model_outs = {'sentence': tokens, 'y_true': y_true.detach().cpu().numpy(), 'y0': y0}
 
-    N=len(x)
+    N = len(x)
 
     evolution = {}
     for frac in fracs:
         inds_generator = iter(inds_sorted)
-        n_flip=int(np.ceil(frac*N))
+        n_flip = int(np.ceil(frac * N))
         inds_flip = [next(inds_generator) for i in range(n_flip)]
 
         if flip_case == 'pruning':
 
             inputs = inputs0
             for i in inds_flip:
-                inputs[:,i] = UNK_IDX
+                inputs[:, i] = UNK_IDX
 
         elif flip_case == 'generate':
-            inputs = UNK_IDX*torch.ones_like(inputs0)
+            inputs = UNK_IDX * torch.ones_like(inputs0)
             # Set pad tokens
-            inputs[inputs0==0] = 0
+            inputs[inputs0 == 0] = 0
 
             for i in inds_flip:
-                inputs[:,i] = inputs0[:,i]
+                inputs[:, i] = inputs0[:, i]
 
-        y = model(inputs, labels =  torch.tensor([y_true]*len(token_ids)).long().to(device))['logits'].detach().cpu().numpy()
+        y = model(inputs, labels=torch.tensor([y_true] * len(token_ids)).long().to(device))[
+            'logits'].detach().cpu().numpy()
         y = y.squeeze()
 
-        err = np.sum((y0-y)**2)
+        err = np.sum((y0 - y) ** 2)
         mse.append(err)
         evidence.append(softmax(y)[int(y_true)])
 
-      #  print('{:0.2f}'.format(frac), ' '.join(tokenizer.convert_ids_to_tokens(inputs.detach().cpu().numpy().squeeze())))
+        #  print('{:0.2f}'.format(frac), ' '.join(tokenizer.convert_ids_to_tokens(inputs.detach().cpu().numpy().squeeze())))
         evolution[frac] = (inputs.detach().cpu().numpy(), inds_flip, y)
 
     if flip_case == 'generate' and frac == 1.:
         assert (inputs0 == inputs).all()
 
-
-    model_outs['flip_evolution']  = evolution
+    model_outs['flip_evolution'] = evolution
     return mse, evidence, model_outs
