@@ -5,7 +5,7 @@ from torch import nn
 
 # root_dir = '../../'
 # sys.path.append(root_dir)
-from utils import LayerNorm
+from xai_transformers.utils import LayerNorm
 
 
 class LNargs(object):

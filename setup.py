@@ -3,7 +3,6 @@ from setuptools import setup
 setup(
     name='xai_transformers',
     version='0.0.1',
-    package_dir={'xai_transformers':'src'},
     packages=['xai_transformers.SST', 
     	      'xai_transformers.IMDB', 
     	      'xai_transformers'],
